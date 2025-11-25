@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>おもちゃいろモンスター図鑑</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'M PLUS Rounded 1c', sans-serif;
+        background-color: #fdf2f8; /* pink-50 */
+      }
+      /* Custom bounce animation for buttons */
+      @keyframes bounce-sm {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+      }
+      .animate-bounce-hover:hover {
+        animation: bounce-sm 0.5s infinite;
+      }
+
+      /* Pop In Animation for Result */
+      @keyframes pop-in {
+        0% { transform: scale(0.5); opacity: 0; }
+        70% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; }
+      }
+      .animate-pop-in {
+        animation: pop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      }
+
+      /* Slow Spin for Sunburst */
+      @keyframes spin-slow {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .animate-spin-slow {
+        animation: spin-slow 10s linear infinite;
+      }
+
+      /* Confetti Animation */
+      @keyframes confetti-fall {
+        0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+      }
+      .confetti {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: #ffd700;
+        animation: confetti-fall 4s linear infinite;
+      }
+      .confetti:nth-child(even) { background-color: #ff69b4; width: 8px; height: 8px; }
+      .confetti:nth-child(3n) { background-color: #00bfff; width: 12px; height: 12px; }
+
+      /* --- BATTLE ANIMATIONS --- */
+      
+      /* Attack Rush Left to Right */
+      @keyframes attack-right {
+        0% { transform: translateX(0) scale(1); }
+        20% { transform: translateX(-20px) scale(0.9); } /* Wind up */
+        50% { transform: translateX(80px) scale(1.2); } /* Strike */
+        100% { transform: translateX(0) scale(1); }
+      }
+      .animate-attack-right {
+        animation: attack-right 0.6s cubic-bezier(0.1, 0.7, 0.1, 1);
+      }
+
+      /* Attack Rush Right to Left */
+      @keyframes attack-left {
+        0% { transform: translateX(0) scale(1); }
+        20% { transform: translateX(20px) scale(0.9); } /* Wind up */
+        50% { transform: translateX(-80px) scale(1.2); } /* Strike */
+        100% { transform: translateX(0) scale(1); }
+      }
+      .animate-attack-left {
+        animation: attack-left 0.6s cubic-bezier(0.1, 0.7, 0.1, 1);
+      }
+
+      /* Shake/Impact */
+      @keyframes damage-shake {
+        0% { transform: translate(0, 0); }
+        10%, 90% { transform: translate(-5px, -5px); }
+        20%, 80% { transform: translate(5px, 5px); }
+        30%, 50%, 70% { transform: translate(-5px, 5px); }
+        40%, 60% { transform: translate(5px, -5px); }
+        100% { transform: translate(0, 0); }
+      }
+      .animate-shake {
+        animation: damage-shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+      }
+
+      /* Damage Hit (Intense Shake + Flash) */
+      @keyframes damage-hit {
+        0% { transform: translate(0, 0) rotate(0); filter: brightness(1); }
+        15% { transform: translate(-15px, -10px) rotate(-10deg); filter: brightness(3) contrast(1.5); } /* Flash White */
+        30% { transform: translate(12px, 8px) rotate(8deg); filter: brightness(1); }
+        45% { transform: translate(-10px, -5px) rotate(-5deg); filter: opacity(0.6) hue-rotate(90deg); } /* Glitch Color */
+        60% { transform: translate(8px, 4px) rotate(4deg); filter: brightness(1); }
+        75% { transform: translate(-4px, -2px) rotate(-2deg); }
+        100% { transform: translate(0, 0); filter: brightness(1); }
+      }
+      .animate-damage {
+        animation: damage-hit 0.6s ease-out both;
+      }
+
+      /* Flash Effect */
+      @keyframes flash-white {
+        0%, 100% { background-color: transparent; }
+        50% { background-color: rgba(255, 255, 255, 0.8); }
+      }
+      .animate-flash {
+        animation: flash-white 0.3s ease-out;
+      }
+
+      /* Egg Shake Animation */
+      @keyframes egg-shake {
+        0% { transform: rotate(0deg); }
+        25% { transform: rotate(-5deg); }
+        50% { transform: rotate(5deg); }
+        75% { transform: rotate(-5deg); }
+        100% { transform: rotate(0deg); }
+      }
+      .animate-egg-shake {
+        animation: egg-shake 0.5s infinite;
+      }
+
+      /* Float Up Animation (Level Up) */
+      @keyframes float-up {
+        0% { transform: translateY(0) scale(0.5); opacity: 0; }
+        20% { transform: translateY(-10px) scale(1.2); opacity: 1; }
+        80% { transform: translateY(-30px) scale(1.2); opacity: 1; }
+        100% { transform: translateY(-40px) scale(1); opacity: 0; }
+      }
+      .animate-float-up {
+        animation: float-up 2s ease-out forwards;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
