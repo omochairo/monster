@@ -3,23 +3,33 @@ import { GeneratedPet } from '../types';
 import { PetImage } from './PetImage';
 import { Button } from './Button';
 import { X, Sparkles, Wand2, ArrowRight, Plus } from 'lucide-react';
-import { fusePets } from '../services/geminiService';
+import { fusePets, FUSION_MIN_LEVEL } from '../services/geminiService';
+import { BODY_SHAPES, bodyIndexOf, isBossPrompt, speciesNo } from '../services/species';
 import { playFusionSound, playVictorySound } from '../services/audioService';
 import { triggerConfetti } from '../services/confetti';
 
 interface FusionModalProps {
   collection: GeneratedPet[];
+  foundSpecies: Set<number>;
   onFusionComplete: (newPet: GeneratedPet) => void;
   onClose: () => void;
 }
 
-export const FusionModal: React.FC<FusionModalProps> = ({ collection, onFusionComplete, onClose }) => {
+export const FusionModal: React.FC<FusionModalProps> = ({ collection, foundSpecies, onFusionComplete, onClose }) => {
   const [pet1, setPet1] = useState<GeneratedPet | null>(null);
   const [pet2, setPet2] = useState<GeneratedPet | null>(null);
   const [isFusing, setIsFusing] = useState(false);
   const [fusedResult, setFusedResult] = useState<GeneratedPet | null>(null);
 
+  // Recipe preview: body from the first pet, element from the second.
+  const recipe = pet1 && pet2 ? {
+    no: speciesNo(pet2.element.id, bodyIndexOf(pet1)),
+    body: BODY_SHAPES[bodyIndexOf(pet1)].label,
+    element: pet2.element,
+  } : null;
+
   const handleSelectPet = (pet: GeneratedPet) => {
+    if ((pet.level || 1) < FUSION_MIN_LEVEL || isBossPrompt(pet.imagePrompt)) return;
     const uniqueId = (p: GeneratedPet) => `${p.imagePrompt}-${p.dateFound}`;
     
     if (pet1 && uniqueId(pet1) === uniqueId(pet)) {
@@ -76,7 +86,7 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, onFusionCo
           <Wand2 className="w-6 h-6 text-purple-500 animate-bounce" />
           <span>まほうの合成工房</span>
         </h2>
-        <p className="text-xs text-gray-400 font-bold mb-4">2匹のモンスターを選んで 合体させよう！</p>
+        <p className="text-xs text-gray-400 font-bold mb-4">Lv{FUSION_MIN_LEVEL}いじょうの 2ひきで 合体！ 1ばんめの からだ × 2ばんめの ぞくせい に なるよ</p>
 
         {/* FUSION ANIMATION AREA */}
         {isFusing ? (
@@ -95,9 +105,8 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, onFusionCo
           <div className="py-4 animate-pop-in">
             <div className="w-48 h-48 mx-auto bg-gradient-to-b from-purple-100 to-pink-100 rounded-3xl p-2 border-4 border-purple-300 shadow-xl mb-4 relative flex items-center justify-center">
               <PetImage 
-                src={fusedResult.imageUrl} 
-                alt={fusedResult.name} 
-                prompt={fusedResult.imagePrompt}
+                pet={fusedResult} 
+                alt={fusedResult.name}
                 className="w-40 h-40 object-contain drop-shadow-lg"
               />
               <div className="absolute -top-3 bg-yellow-400 text-yellow-900 text-xs font-black px-3 py-0.5 rounded-full border-2 border-white shadow-md">
@@ -127,7 +136,7 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, onFusionCo
                 }`}
               >
                 {pet1 ? (
-                  <PetImage src={pet1.imageUrl} alt={pet1.name} prompt={pet1.imagePrompt} className="w-20 h-20 object-contain" />
+                  <PetImage pet={pet1} alt={pet1.name} className="w-20 h-20 object-contain" />
                 ) : (
                   <Plus className="w-8 h-8 text-gray-300" />
                 )}
@@ -146,7 +155,7 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, onFusionCo
                 }`}
               >
                 {pet2 ? (
-                  <PetImage src={pet2.imageUrl} alt={pet2.name} prompt={pet2.imagePrompt} className="w-20 h-20 object-contain" />
+                  <PetImage pet={pet2} alt={pet2.name} className="w-20 h-20 object-contain" />
                 ) : (
                   <Plus className="w-8 h-8 text-gray-300" />
                 )}
@@ -158,22 +167,31 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, onFusionCo
 
             {/* Collection Grid Selection */}
             <div className="max-h-48 overflow-y-auto grid grid-cols-4 gap-2 mb-4 p-1 bg-gray-50 rounded-2xl border border-gray-100">
-              {collection.map(pet => {
+              {collection.filter(pet => !isBossPrompt(pet.imagePrompt)).map(pet => {
                 const isSelected = (pet1 && uniqueId(pet1) === uniqueId(pet)) || (pet2 && uniqueId(pet2) === uniqueId(pet));
+                const tooLow = (pet.level || 1) < FUSION_MIN_LEVEL;
                 return (
                   <div
                     key={uniqueId(pet)}
                     onClick={() => handleSelectPet(pet)}
-                    className={`p-1 bg-white rounded-xl border cursor-pointer transition-all ${
+                    className={`relative p-1 bg-white rounded-xl border transition-all ${tooLow ? 'opacity-40 grayscale cursor-not-allowed' : 'cursor-pointer'} ${
                       isSelected ? 'border-purple-500 ring-2 ring-purple-200 bg-purple-50 scale-95' : 'border-gray-200 hover:border-purple-300'
                     }`}
                   >
-                    <PetImage src={pet.imageUrl} alt={pet.name} prompt={pet.imagePrompt} className="w-12 h-12 object-contain mx-auto" />
+                    <PetImage pet={pet} alt={pet.name} className="w-12 h-12 object-contain mx-auto" />
                     <p className="text-[9px] font-bold text-gray-700 truncate text-center mt-1">{pet.name}</p>
+                    <p className="text-[9px] font-bold text-center text-gray-400">Lv.{pet.level || 1}</p>
                   </div>
                 );
               })}
             </div>
+
+            {recipe && (
+              <div className="mb-3 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-100 rounded-xl py-2">
+                できあがり: {recipe.body}タイプ × {recipe.element.icon}{recipe.element.label}（No.{String(recipe.no).padStart(3, '0')}）
+                {!foundSpecies.has(recipe.no) && <span className="ml-1 bg-red-500 text-white px-2 rounded-full">NEW!</span>}
+              </div>
+            )}
 
             <Button
               onClick={handleStartFusion}

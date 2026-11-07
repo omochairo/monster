@@ -8,18 +8,25 @@ import { PetCareModal } from './PetCareModal';
 import { FusionModal } from './FusionModal';
 import { PetImage } from './PetImage';
 import { playLevelUpSound } from '../services/audioService';
+import { PlayerProgress, SnackType, EGG_INFO } from '../services/progress';
+import { SPECIES_COUNT } from '../services/species';
+import { displayName, xpToNext } from '../services/growth';
+import { ZukanGrid } from './ZukanGrid';
 
 interface CollectionScreenProps {
   collection: GeneratedPet[];
   onBack: () => void;
-  onUpdateCollection?: (newCollection: GeneratedPet[]) => void;
-  
+  progress: PlayerProgress;
+  species: Map<number, { shiny: boolean }>;
+  onPet: (pet: GeneratedPet) => { pet: GeneratedPet; counted: boolean };
+  onFeed: (pet: GeneratedPet, snack: SnackType) => GeneratedPet | null;
+  onFusionComplete: (pet: GeneratedPet) => void;
+
   // Battle Props
-  initialBattleMode?: boolean; 
+  initialBattleMode?: boolean;
   battleTeam?: GeneratedPet[];
   onTogglePet?: (pet: GeneratedPet) => void;
   onStartAdventure?: () => void;
-  hasEgg?: boolean;
 
   // Level Up Props
   recentLevelUps?: string[];
@@ -27,23 +34,29 @@ interface CollectionScreenProps {
 }
 
 type SortOption = 'newest' | 'rarity' | 'power' | 'level';
+type Tab = 'pets' | 'zukan';
 
 export const CollectionScreen: React.FC<CollectionScreenProps> = ({ 
-  collection, 
-  onBack, 
-  onUpdateCollection,
-  
+  collection,
+  onBack,
+  progress,
+  species,
+  onPet,
+  onFeed,
+  onFusionComplete,
+
   initialBattleMode = false,
   battleTeam = [],
   onTogglePet,
   onStartAdventure,
-  hasEgg = false,
 
   recentLevelUps = [],
   onClearLevelUps
 }) => {
   const [isBattleMode, setIsBattleMode] = useState(initialBattleMode);
   const [sortOption, setSortOption] = useState<SortOption>('newest');
+  const [tab, setTab] = useState<Tab>('pets');
+  const hasEgg = !!progress.egg;
   
   // Modal States
   const [showTypeChart, setShowTypeChart] = useState(false);
@@ -65,10 +78,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
   }, [recentLevelUps, onClearLevelUps]);
 
   // Collection Stats for Rank
-  const uniquePetsCount = useMemo(() => {
-    const uniquePrompts = new Set(collection.map(p => p.imagePrompt));
-    return uniquePrompts.size;
-  }, [collection]);
+  const uniquePetsCount = species.size;
 
   const collectionRank = useMemo(() => {
     if (uniquePetsCount >= 30) return { title: 'レジェンド', color: 'bg-yellow-400 text-yellow-900', icon: '👑' };
@@ -79,7 +89,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
   }, [uniquePetsCount]);
   
   const nextRankGoal = useMemo(() => {
-    if (uniquePetsCount >= 30) return 50;
+    if (uniquePetsCount >= 30) return SPECIES_COUNT;
     if (uniquePetsCount >= 20) return 30;
     if (uniquePetsCount >= 10) return 20;
     if (uniquePetsCount >= 5) return 10;
@@ -106,21 +116,6 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
 
   const toggleBattleMode = () => setIsBattleMode(!isBattleMode);
 
-  const handleUpdatePetInCollection = (updatedPet: GeneratedPet) => {
-    const uniqueId = (p: GeneratedPet) => `${p.imagePrompt}-${p.dateFound}`;
-    const newCollection = collection.map(p => 
-      uniqueId(p) === uniqueId(updatedPet) ? updatedPet : p
-    );
-    if (onUpdateCollection) {
-      onUpdateCollection(newCollection);
-    }
-  };
-
-  const handleFusionComplete = (newPet: GeneratedPet) => {
-    if (onUpdateCollection) {
-      onUpdateCollection([...collection, newPet]);
-    }
-  };
 
   const getSelectionIndex = (pet: GeneratedPet) => {
     const uniqueId = (p: GeneratedPet) => `${p.imagePrompt}-${p.dateFound}`;
@@ -145,14 +140,17 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
       {carePet && (
         <PetCareModal
           pet={carePet}
-          onUpdatePet={handleUpdatePetInCollection}
+          progress={progress}
+          onPet={onPet}
+          onFeed={onFeed}
           onClose={() => setCarePet(null)}
         />
       )}
       {showFusionModal && (
         <FusionModal
           collection={collection}
-          onFusionComplete={handleFusionComplete}
+          foundSpecies={new Set(species.keys())}
+          onFusionComplete={onFusionComplete}
           onClose={() => setShowFusionModal(false)}
         />
       )}
@@ -171,8 +169,8 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
             
             {hasEgg && (
               <div className="bg-yellow-50 border border-yellow-200 px-2 py-1 rounded-full flex items-center gap-1 animate-pulse">
-                <span className="text-lg">🥚</span>
-                <span className="text-xs font-bold text-yellow-600 hidden md:inline">タマゴ所持中</span>
+                <span className="text-lg">{progress.egg ? EGG_INFO[progress.egg.tier].emoji : '🥚'}</span>
+                <span className="text-xs font-bold text-yellow-600">{progress.egg ? `${progress.egg.warmth}/${EGG_INFO[progress.egg.tier].need}` : ''}</span>
               </div>
             )}
           </div>
@@ -234,11 +232,11 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                   {collectionRank.icon} {collectionRank.title}
                 </span>
                 <span className="text-xs text-gray-500 font-bold">
-                  あつめた種類: {uniquePetsCount}
+                  あつめた しゅぞく: {uniquePetsCount}
                 </span>
               </div>
               <span className="text-[10px] text-gray-400 font-bold">
-                つぎのランクまで: {nextRankGoal - uniquePetsCount}
+                {uniquePetsCount >= SPECIES_COUNT ? "ずかん コンプリート！" : `つぎのランクまで: ${nextRankGoal - uniquePetsCount}`}
               </span>
             </div>
             <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
@@ -273,7 +271,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                       >
                         {pet ? (
                           <>
-                            <PetImage src={pet.imageUrl} alt={pet.name} prompt={pet.imagePrompt} className="w-full h-full object-contain p-1" />
+                            <PetImage pet={pet} alt={pet.name} className="w-full h-full object-contain p-1" />
                             <div className="absolute -top-2 -right-2 bg-gray-600 text-white rounded-full p-1">
                               <X className="w-3 h-3" />
                             </div>
@@ -314,8 +312,20 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
           </div>
         )}
 
+        {/* PETS / ZUKAN TABS */}
+        {!isBattleMode && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button onClick={() => setTab('pets')} className={`py-2 rounded-xl font-black text-sm ${tab === 'pets' ? 'bg-pink-500 text-white shadow' : 'bg-gray-100 text-gray-500'}`}>
+              なかま ({collection.length})
+            </button>
+            <button onClick={() => setTab('zukan')} className={`py-2 rounded-xl font-black text-sm ${tab === 'zukan' ? 'bg-purple-500 text-white shadow' : 'bg-gray-100 text-gray-500'}`}>
+              ずかん ({uniquePetsCount}/{SPECIES_COUNT})
+            </button>
+          </div>
+        )}
+
         {/* SORT TABS */}
-        {!isBattleMode && collection.length > 0 && (
+        {!isBattleMode && tab === 'pets' && collection.length > 0 && (
           <div className="mt-3 pt-2 border-t border-gray-100 flex gap-2 overflow-x-auto no-scrollbar pb-1">
             <button 
               onClick={() => setSortOption('newest')}
@@ -354,7 +364,9 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
       </div>
 
       {/* COLLECTION GRID */}
-      {collection.length === 0 ? (
+      {!isBattleMode && tab === 'zukan' ? (
+        <ZukanGrid collection={collection} species={species} />
+      ) : collection.length === 0 ? (
         <div className="text-center py-20 bg-white/50 rounded-3xl border-2 border-dashed border-gray-300 mx-2">
           <p className="text-xl text-gray-500 font-bold mb-2">まだ モンスターがいません</p>
           <p className="text-gray-400 mb-6 text-sm">ゲームであそんで パートナーをみつけよう！</p>
@@ -375,7 +387,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
 
             const currentLevel = pet.level || 1;
             const currentXp = pet.xp || 0;
-            const neededXp = 100;
+            const neededXp = xpToNext(currentLevel);
             const xpPercent = Math.min(100, (currentXp / neededXp) * 100);
 
             const levelBadgeStyle = currentLevel >= 50 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 border-yellow-200' :
@@ -437,7 +449,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                   ${isSelected ? 'from-red-100 to-orange-100' : ''}
                   ${isRecentLevelUp ? 'from-yellow-100 to-yellow-50' : ''}
                 `}>
-                  <PetImage src={pet.imageUrl} alt={pet.name} prompt={pet.imagePrompt} className="w-full h-full object-contain p-2 transition-transform group-hover:scale-110 duration-500" />
+                  <PetImage pet={pet} alt={pet.name} className="w-full h-full object-contain p-2 transition-transform group-hover:scale-110 duration-500" />
                   
                   {/* Mini XP Bar */}
                   <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-200">
@@ -448,7 +460,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
                 {/* Info Area */}
                 <div className="text-center">
                   <h3 className="font-bold text-gray-800 text-sm md:text-base truncate px-1 mb-1">
-                    {pet.name}
+                    {displayName(pet)}
                   </h3>
                   
                   <div className="grid grid-cols-3 gap-0.5 text-xs bg-gray-50 rounded p-1.5 text-gray-500 font-bold">

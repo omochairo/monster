@@ -4,6 +4,8 @@ import { X, Star, Zap, Flame, Activity, Brain, ArrowUp, Volume2, Heart, Wand2 } 
 import { PetImage } from './PetImage';
 import { speakText, stopSpeech } from '../services/speechService';
 import { playClickSound } from '../services/audioService';
+import { displayName, xpToNext } from '../services/growth';
+import { FORM_LEVELS, formOfLevel, speciesOf } from '../services/species';
 
 interface PetDetailModalProps {
   pet: GeneratedPet;
@@ -17,7 +19,7 @@ export const PetDetailModal: React.FC<PetDetailModalProps> = ({ pet, onOpenCare,
   
   const currentLevel = pet.level || 1;
   const currentXp = pet.xp || 0;
-  const neededXp = 100; 
+  const neededXp = xpToNext(currentLevel);
   const xpPercent = Math.min(100, (currentXp / neededXp) * 100);
   const nextLevelRemaining = Math.max(0, neededXp - currentXp);
 
@@ -73,9 +75,8 @@ export const PetDetailModal: React.FC<PetDetailModalProps> = ({ pet, onOpenCare,
            )}
 
            <PetImage 
-             src={pet.imageUrl} 
+             pet={pet} 
              alt={pet.name}
-             prompt={pet.imagePrompt}
              className={`relative z-10 h-48 w-48 object-contain drop-shadow-2xl ${isLegendary ? 'animate-bounce-hover' : ''}`}
            />
 
@@ -90,7 +91,7 @@ export const PetDetailModal: React.FC<PetDetailModalProps> = ({ pet, onOpenCare,
         <div className="p-6">
           <div className="flex justify-between items-center mb-2">
              <div className="flex items-center gap-2">
-                 <h2 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">{pet.name}</h2>
+                 <h2 className="text-2xl md:text-3xl font-black text-gray-800 tracking-tight">{displayName(pet)}</h2>
                  <div className="bg-gray-800 text-white text-xs font-bold px-2 py-0.5 rounded-md">
                      Lv.{currentLevel}
                  </div>
@@ -122,6 +123,12 @@ export const PetDetailModal: React.FC<PetDetailModalProps> = ({ pet, onOpenCare,
               </button>
             )}
           </div>
+
+          <p className="text-xs font-bold text-gray-400 mb-3">
+            ずかん No.{String(speciesOf(pet).no).padStart(3, '0')} ・ {speciesOf(pet).body.label}タイプ
+            {pet.shiny && <span className="ml-1 text-pink-500">✨いろちがい</span>}
+            {formOfLevel(pet.level) < 3 && <span className="ml-1">・ Lv{FORM_LEVELS[formOfLevel(pet.level)]}で しんか！</span>}
+          </p>
 
           {/* XP Bar */}
           <div className="mb-4">

@@ -4,13 +4,16 @@ import { GeneratedPet } from '../types';
 import { Button } from './Button';
 import { Share2, RefreshCw, Star, Zap, Activity, Brain, Flame } from 'lucide-react';
 import { PetImage } from './PetImage';
+import { speciesOf } from '../services/species';
 
 interface ResultScreenProps {
   pet: GeneratedPet;
+  isNewSpecies?: boolean;
   onReset: () => void;
 }
 
-export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, onReset }) => {
+export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, isNewSpecies, onReset }) => {
+  const species = speciesOf(pet);
   // Determine gradient based on element
   const elementGradient = {
     fire: 'from-orange-100 via-red-50 to-yellow-50',
@@ -95,9 +98,8 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, onReset }) => {
           )}
 
           <PetImage
-            src={pet.imageUrl} 
-            alt={pet.name} 
-            prompt={pet.imagePrompt}
+            pet={pet} 
+            alt={pet.name}
             className={`relative z-10 w-full h-full object-contain p-6 drop-shadow-xl ${isLegendary ? 'animate-bounce-hover' : ''}`}
           />
           
@@ -115,9 +117,16 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, onReset }) => {
 
         {/* Content */}
         <div className="p-6 relative bg-white">
-          <h2 className="text-3xl font-black text-gray-800 mb-6 text-center tracking-tight">
+          <div className="flex justify-center gap-2 mb-2 flex-wrap">
+            {isNewSpecies && <span className="bg-red-500 text-white text-xs font-black px-3 py-1 rounded-full animate-bounce">NEW！ あたらしい しゅぞく</span>}
+            {pet.shiny && <span className="bg-pink-500 text-white text-xs font-black px-3 py-1 rounded-full animate-pulse">✨ いろちがい ✨</span>}
+          </div>
+          <h2 className="text-3xl font-black text-gray-800 mb-1 text-center tracking-tight">
             {pet.name}
           </h2>
+          <p className="text-center text-xs font-bold text-gray-400 mb-6">
+            ずかん No.{String(species.no).padStart(3, '0')} ・ {species.body.label}タイプ × {pet.element.icon}{pet.element.label}
+          </p>
 
           <div className="space-y-6">
             {/* Stats Bars */}
@@ -132,7 +141,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, onReset }) => {
                             <span>{pet.stats.power}</span>
                         </div>
                         <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-red-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${pet.stats.power}%` }}></div>
+                            <div className="h-full bg-red-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, pet.stats.power)}%` }}></div>
                         </div>
                     </div>
                 </div>
@@ -147,7 +156,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, onReset }) => {
                             <span>{pet.stats.speed}</span>
                         </div>
                         <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-blue-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${pet.stats.speed}%` }}></div>
+                            <div className="h-full bg-blue-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, pet.stats.speed)}%` }}></div>
                         </div>
                     </div>
                 </div>
@@ -162,7 +171,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({ pet, onReset }) => {
                             <span>{pet.stats.smarts}</span>
                         </div>
                         <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-green-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${pet.stats.smarts}%` }}></div>
+                            <div className="h-full bg-green-400 rounded-full transition-all duration-1000 ease-out" style={{ width: `${Math.min(100, pet.stats.smarts)}%` }}></div>
                         </div>
                     </div>
                 </div>
