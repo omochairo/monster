@@ -154,7 +154,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
 
       {/* HEADER AREA */}
       <div className="bg-white rounded-3xl p-3 md:p-4 mb-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           {/* Left Group */}
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
             <Button variant="secondary" size="sm" onClick={onBack} className="w-10 h-10 p-0 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-100 shadow-sm text-gray-600">
@@ -173,7 +173,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
           </div>
           
           {/* Right Group: Buttons */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {!isBattleMode && (
               <Button
                 onClick={() => {
