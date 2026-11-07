@@ -157,7 +157,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
         <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           {/* Left Group */}
           <div className="flex items-center gap-2 md:gap-3 shrink-0">
-            <Button variant="secondary" size="sm" onClick={onBack} className="w-10 h-10 p-0 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-100 shadow-sm text-gray-600">
+            <Button variant="secondary" size="sm" onClick={onBack} className="w-10 h-10 !p-0 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-100 shadow-sm text-gray-600">
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <h2 className="text-lg md:text-2xl font-black text-gray-800 leading-none pt-0.5">
