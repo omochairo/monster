@@ -69,6 +69,8 @@ export const BattleScreen: React.FC<BattleScreenProps> = ({ playerTeam, stage, o
   // Run totals live in a ref: they are read inside timers and must never be stale.
   const runRef = useRef({ defeated: [] as GeneratedPet[], xp: 0, jankenWins: 0, specials: 0 });
   const timers = useRef<number[]>([]);
+  // Locks the turn synchronously so a double tap cannot resolve it twice.
+  const acting = useRef(false);
   const later = (fn: () => void, ms: number) => { timers.current.push(window.setTimeout(fn, ms)); };
 
   // Leaving the screen stops music and every pending timer.
@@ -139,9 +141,10 @@ export const BattleScreen: React.FC<BattleScreenProps> = ({ playerTeam, stage, o
   };
 
   const handleMove = (move: Move, special = false) => {
-    if (phase !== 'turn' || activeIdx === null || !active) return;
+    if (acting.current || phase !== 'turn' || activeIdx === null || !active) return;
+    if (special && gauge < 100) return;
+    acting.current = true;
     if (special) {
-      if (gauge < 100) return;
       setShowCutIn(true);
       playSuperpowerSound();
       later(() => setShowCutIn(false), 1500);
@@ -169,6 +172,7 @@ export const BattleScreen: React.FC<BattleScreenProps> = ({ playerTeam, stage, o
     }, special ? 1500 : 450);
 
     later(() => {
+      acting.current = false;
       if (out.enemy.hp <= 0) return afterEnemyDown(nextTeam, out.enemy);
       if (out.player.hp <= 0) return afterPlayerDown(nextTeam);
       rollIntent(out.enemy.pet);
@@ -186,7 +190,8 @@ export const BattleScreen: React.FC<BattleScreenProps> = ({ playerTeam, stage, o
       rollIntent(enemy.pet);
       return;
     }
-    if (phase !== 'turn') return;
+    if (acting.current || phase !== 'turn') return;
+    acting.current = true;
     playClickSound();
     const incoming = team[idx];
     const taken = Math.max(0, Math.min(incoming.hp - 1, damageOf(enemy.pet, intent, incoming.pet, 0.5, Math.random)));
@@ -200,6 +205,7 @@ export const BattleScreen: React.FC<BattleScreenProps> = ({ playerTeam, stage, o
       setFx({ dealt: 0, taken, tone: 'draw', enemyMove: intent });
     }, 450);
     later(() => {
+      acting.current = false;
       rollIntent(enemy.pet);
       setFx(null);
       setPhase('turn');
@@ -348,7 +354,7 @@ export const BattleScreen: React.FC<BattleScreenProps> = ({ playerTeam, stage, o
             {/* Janken move buttons */}
             <div className="grid grid-cols-3 gap-2">
               {MOVE_ORDER.map(m => (
-                <button key={m} onClick={() => handleMove(m)} disabled={!canAct}
+                <button key={m} onClick={() => handleMove(m)} disabled={!canAct} aria-label={`${MOVES[m].hand} ${MOVES[m].label}`}
                   className={`relative rounded-2xl py-2 bg-gradient-to-b ${MOVES[m].button} text-white font-black shadow-lg border-b-4 border-black/20 active:translate-y-0.5 transition disabled:opacity-50`}>
                   {hintMove === m && canAct && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-300 text-yellow-900 text-[10px] px-2 rounded-full border border-white animate-bounce whitespace-nowrap">かてる！</div>}
                   <div className="text-3xl leading-none">{MOVES[m].hand}</div>

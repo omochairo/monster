@@ -4,6 +4,7 @@ import { PetImage } from './PetImage';
 import { Button } from './Button';
 import { X, Sparkles, Wand2, ArrowRight, Plus } from 'lucide-react';
 import { fusePets, FUSION_MIN_LEVEL } from '../services/geminiService';
+import { petKey } from '../services/growth';
 import { BODY_SHAPES, bodyIndexOf, isBossPrompt, speciesNo } from '../services/species';
 import { playFusionSound, playVictorySound } from '../services/audioService';
 import { triggerConfetti } from '../services/confetti';
@@ -30,7 +31,6 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, foundSpeci
 
   const handleSelectPet = (pet: GeneratedPet) => {
     if ((pet.level || 1) < FUSION_MIN_LEVEL || isBossPrompt(pet.imagePrompt)) return;
-    const uniqueId = (p: GeneratedPet) => `${p.imagePrompt}-${p.dateFound}`;
     
     if (pet1 && uniqueId(pet1) === uniqueId(pet)) {
       setPet1(null);
@@ -71,7 +71,7 @@ export const FusionModal: React.FC<FusionModalProps> = ({ collection, foundSpeci
     }
   };
 
-  const uniqueId = (p: GeneratedPet) => `${p.imagePrompt}-${p.dateFound}`;
+  const uniqueId = petKey;
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in" onClick={onClose}>

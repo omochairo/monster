@@ -4,6 +4,7 @@ import { Button } from './Button';
 import {
   EGG_INFO, MISSION_BONUS, PlayerProgress, SNACKS, STAMP_CARD_SIZE, SnackType, StampResult, rewardLabel,
 } from '../services/progress';
+import { todayKey } from '../services/random';
 
 interface DailyModalProps {
   progress: PlayerProgress;
@@ -14,7 +15,8 @@ interface DailyModalProps {
 
 export const DailyModal: React.FC<DailyModalProps> = ({ progress, stampResult, onClaimMission, onClose }) => {
   // Right after the 7th stamp the card resets to 0, but we still want to show it full.
-  const shownStamps = stampResult?.stamped ? stampResult.count : progress.stamps.count;
+  const cardJustFilled = progress.stamps.lastDate === todayKey() && progress.stamps.count === 0;
+  const shownStamps = stampResult?.stamped ? stampResult.count : cardJustFilled ? STAMP_CARD_SIZE : progress.stamps.count;
   const missions = progress.missions.list;
   const allDone = missions.length > 0 && missions.every(m => m.claimed);
 

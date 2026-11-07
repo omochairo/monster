@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { QUESTIONS } from './constants';
 import { AppState, GeneratedPet, Option, Stage, AppSettings } from './types';
 import { generatePetProfile, generateEggPet } from './services/geminiService';
@@ -72,14 +72,19 @@ const App: React.FC = () => {
   const [isBattleModeInitial, setIsBattleModeInitial] = useState(false);
   const [outcome, setOutcome] = useState<StageOutcome | null>(null);
   const [celebrations, setCelebrations] = useState<Celebration[]>([]);
-  const [afterOutcome, setAfterOutcome] = useState<Celebration[]>([]);
   const [recentLevelUps, setRecentLevelUps] = useState<string[]>([]);
 
   // Daily
   const [stampResult, setStampResult] = useState<StampResult | null>(null);
   const [showDaily, setShowDaily] = useState(false);
 
+  // Handlers read the latest saved state through refs, so quick repeated taps never work on a stale copy.
+  const collectionRef = useRef(collection);
+  const progressRef = useRef(progress);
+  const quizBusy = useRef(false);
+
   const persistCollection = (next: GeneratedPet[]) => {
+    collectionRef.current = next;
     setCollection(next);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -89,6 +94,7 @@ const App: React.FC = () => {
   };
 
   const persistProgress = (next: PlayerProgress) => {
+    progressRef.current = next;
     setProgress(next);
     saveProgress(next);
   };
@@ -160,18 +166,22 @@ const App: React.FC = () => {
       setCurrentQuestionIndex(prev => prev + 1);
       return;
     }
+    if (quizBusy.current) return;
+    quizBusy.current = true;
     setAppState(AppState.LOADING);
     try {
       const pet = { ...(await generatePetProfile(newAnswers)), dateFound: Date.now() };
-      setResult({ pet, isNewSpecies: !foundSpecies(collection).has(speciesOf(pet).no) });
-      persistCollection(addPet(collection, pet));
+      setResult({ pet, isNewSpecies: !foundSpecies(collectionRef.current).has(speciesOf(pet).no) });
+      persistCollection(addPet(collectionRef.current, pet));
       setAppState(AppState.RESULT);
     } catch (e) {
       console.error(e);
       setErrorMsg('ごめんね、うまくペットが見つからなかったみたい。もういちど やってみてね！');
       setAppState(AppState.ERROR);
+    } finally {
+      quizBusy.current = false;
     }
-  }, [answers, currentQuestionIndex, collection]);
+  }, [answers, currentQuestionIndex]);
 
   const handleReset = () => {
     playClickSound();
@@ -243,7 +253,7 @@ const App: React.FC = () => {
 
     const evolved: GeneratedPet[] = [];
     const levelUps: StageOutcome['levelUps'] = [];
-    let nextCollection = collection.map(p => {
+    let nextCollection = collectionRef.current.map(p => {
       if (!teamKeys.includes(petKey(p))) return p;
       const r = gainXp(p, xp);
       if (r.levelsGained > 0) levelUps.push({ pet: r.pet, levels: r.levelsGained });
@@ -251,7 +261,7 @@ const App: React.FC = () => {
       return r.pet;
     });
 
-    let p = progress;
+    let p = progressRef.current;
     for (let i = 0; i < run.jankenWins; i++) p = recordEvent(p, { type: 'janken_win' });
     for (let i = 0; i < run.specials; i++) p = recordEvent(p, { type: 'special' });
     p = { ...p, stats: { ...p.stats, battlesWon: p.stats.battlesWon + run.defeated.length } };
@@ -284,6 +294,7 @@ const App: React.FC = () => {
           const baby = generateEggPet(info.minRarity, info.shinyChance);
           nextCollection = addPet(nextCollection, baby);
           after.push({ kind: 'hatch', pet: baby, tier: warmed.hatchTier });
+          rewards.push(`${info.emoji} タマゴから ${baby.name} が うまれた！`);
           if (baby.shiny) warmed.progress = { ...warmed.progress, stats: { ...warmed.progress.stats, shinyFound: warmed.progress.stats.shinyFound + 1 } };
         } else if (warmed.progress.egg) {
           rewards.push(`${EGG_INFO[warmed.progress.egg.tier].emoji} タマゴが あたたまった（${warmed.progress.egg.warmth}/${EGG_INFO[warmed.progress.egg.tier].need}）`);
@@ -302,8 +313,8 @@ const App: React.FC = () => {
     persistProgress(p);
     setBattleTeam(refreshTeam(nextCollection));
     setRecentLevelUps(levelUps.map(l => petKey(l.pet)));
-    setAfterOutcome(after);
-    setCelebrations(evolved.map(pet => ({ kind: 'evolve' as const, pet })));
+    // Evolutions and eggs play first; the result card waits until they are closed.
+    setCelebrations([...evolved.map(pet => ({ kind: 'evolve' as const, pet })), ...after]);
     setOutcome({
       stage,
       cleared: run.cleared,
@@ -319,26 +330,27 @@ const App: React.FC = () => {
 
   const handleRecruit = (enemy: GeneratedPet) => {
     const pet = normalizePet({ ...enemy, level: 1, xp: 0, friendship: 10, isBoss: false, dateFound: Date.now() });
-    persistCollection(addPet(collection, pet));
-    let p = recordEvent(progress, { type: 'recruit' });
+    persistCollection(addPet(collectionRef.current, pet));
+    let p = recordEvent(progressRef.current, { type: 'recruit' });
     if (pet.shiny) p = { ...p, stats: { ...p.stats, shinyFound: p.stats.shinyFound + 1 } };
     persistProgress(p);
   };
 
   const closeOutcome = (next: () => void) => {
     setOutcome(null);
-    setCelebrations(afterOutcome);
-    setAfterOutcome([]);
     next();
   };
 
   // --- Care: petting is free (capped per day), snacks are items ---
   const updatePet = (pet: GeneratedPet) => {
-    persistCollection(collection.map(p => (petKey(p) === petKey(pet) ? pet : p)));
+    persistCollection(collectionRef.current.map(p => (petKey(p) === petKey(pet) ? pet : p)));
   };
 
-  const handlePetting = (pet: GeneratedPet): { pet: GeneratedPet; counted: boolean } => {
-    const r = registerPetting(progress);
+  const latestPet = (pet: GeneratedPet) => collectionRef.current.find(p => petKey(p) === petKey(pet)) || pet;
+
+  const handlePetting = (target: GeneratedPet): { pet: GeneratedPet; counted: boolean } => {
+    const pet = latestPet(target);
+    const r = registerPetting(progressRef.current);
     if (!r.counted) return { pet, counted: false };
     const updated = { ...pet, friendship: Math.min(100, (pet.friendship || 0) + 4) };
     updatePet(updated);
@@ -346,7 +358,9 @@ const App: React.FC = () => {
     return { pet: updated, counted: true };
   };
 
-  const handleFeed = (pet: GeneratedPet, snack: SnackType): GeneratedPet | null => {
+  const handleFeed = (target: GeneratedPet, snack: SnackType): GeneratedPet | null => {
+    const pet = latestPet(target);
+    const progress = progressRef.current;
     if (progress.snacks[snack] <= 0) return null;
     const stat = SNACKS[snack].stat;
     const updated = {
@@ -361,12 +375,12 @@ const App: React.FC = () => {
   };
 
   const handleFusionComplete = (pet: GeneratedPet) => {
-    persistCollection(addPet(collection, pet));
+    persistCollection(addPet(collectionRef.current, pet));
   };
 
   const handleClaimMission = (id: string) => {
     playClickSound();
-    persistProgress(claimMission(progress, id));
+    persistProgress(claimMission(progressRef.current, id));
   };
 
   const currentCelebration = celebrations[0];

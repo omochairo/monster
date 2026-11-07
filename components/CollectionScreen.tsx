@@ -10,7 +10,7 @@ import { PetImage } from './PetImage';
 import { playLevelUpSound } from '../services/audioService';
 import { PlayerProgress, SnackType, EGG_INFO } from '../services/progress';
 import { SPECIES_COUNT } from '../services/species';
-import { displayName, xpToNext } from '../services/growth';
+import { displayName, petKey, xpToNext } from '../services/growth';
 import { ZukanGrid } from './ZukanGrid';
 
 interface CollectionScreenProps {
@@ -117,10 +117,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
   const toggleBattleMode = () => setIsBattleMode(!isBattleMode);
 
 
-  const getSelectionIndex = (pet: GeneratedPet) => {
-    const uniqueId = (p: GeneratedPet) => `${p.imagePrompt}-${p.dateFound}`;
-    return battleTeam.findIndex(p => uniqueId(p) === uniqueId(pet));
-  };
+  const getSelectionIndex = (pet: GeneratedPet) => battleTeam.findIndex(p => petKey(p) === petKey(pet));
 
   return (
     <div className="w-full max-w-4xl mx-auto p-2 md:p-4 animate-fade-in pb-10">
@@ -375,7 +372,7 @@ export const CollectionScreen: React.FC<CollectionScreenProps> = ({
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 px-1">
           {sortedCollection.map((pet, index) => {
-            const uniqueKey = `${pet.imagePrompt}-${pet.dateFound || index}`;
+            const uniqueKey = petKey(pet);
             const isLegendary = pet.rarity === 5;
             const borderColor = isLegendary ? 'border-yellow-400 ring-2 ring-yellow-200 shadow-yellow-100' :
                                 pet.rarity === 4 ? 'border-pink-300 shadow-pink-100' : 
