@@ -115,7 +115,8 @@ const App: React.FC = () => {
     if (stamp.stamped) {
       persistProgress(stamp.progress);
       setStampResult(stamp);
-      setShowDaily(true);
+      // First-time visitors see the title screen first; the stamp is still counted.
+      if (collection.length > 0) setShowDaily(true);
     } else {
       saveProgress(progress);
     }
