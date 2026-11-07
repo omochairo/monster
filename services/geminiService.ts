@@ -1,5 +1,8 @@
 
-import { PetProfile, PetElement, GeneratedPet } from "../types";
+import { PetProfile, PetElement, GeneratedPet, PetStats, Stage } from "../types";
+import { simpleHash, seededRandom, pick, randomInt } from "./random";
+import { BODY_SHAPES, bodyIndexOf } from "./species";
+import { STAT_CAP } from "./growth";
 
 // Note: This file replaces the AI service with local deterministic logic.
 
@@ -217,151 +220,162 @@ const SUPERPOWERS = [
   "ウインクで写真を撮る"
 ];
 
-/**
- * Simple string hashing to get a deterministic number from answers
- */
-const simpleHash = (str: string) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
+export interface GenerateOptions {
+  statRange?: [number, number];
+  isBoss?: boolean;
+  elementId?: string;
+  bodyIndex?: number;
+  minRarity?: number;
+  shinyChance?: number;
+  rand?: () => number;
+}
+
+export const BASE_SHINY_CHANCE = 1 / 24;
+
+const rollRarity = (rand: () => number, minRarity: number) => {
+  const r = rand() * 100;
+  const rolled = r > 95 ? 5 : r > 85 ? 4 : r > 65 ? 3 : r > 35 ? 2 : 1;
+  return Math.max(minRarity, rolled);
 };
 
 /**
- * Generate the text profile of the pet based on answers using deterministic logic.
+ * Build a pet profile. With no rand given it is deterministic for the seed string.
  */
-export const generatePetProfile = async (answers: string[]): Promise<GeneratedPet> => {
-  // Simulate "thinking" delay to build anticipation
-  await new Promise(resolve => setTimeout(resolve, 4000));
-
-  const combinedAnswers = answers.join('');
-  const profile = generateProfileFromSeedString(combinedAnswers);
-  
-  return {
-    ...profile,
-    imageUrl: '', // Will be filled later
-    level: 1,
-    xp: 0
-  };
-};
-
-/**
- * Internal logic to generate profile from a seed string.
- * This is separated so we can use it for random generation too.
- */
-const generateProfileFromSeedString = (seedString: string, minStats: number = 10, isBoss: boolean = false): PetProfile => {
+export const generateProfileFromSeedString = (seedString: string, opts: GenerateOptions = {}): PetProfile & { bodyIndex: number; shiny: boolean } => {
   const seed = simpleHash(seedString);
+  const rand = opts.rand || seededRandom(seed);
+  const [minStat, maxStat] = opts.statRange || [20, 40];
 
-  // 1. Determine Name
-  let name = "";
-  if (isBoss) {
-    name = BOSS_NAMES[seed % BOSS_NAMES.length];
-  } else {
-    const prefix = PET_PREFIXES[seed % PET_PREFIXES.length];
-    const suffixSeed = simpleHash(seed.toString());
-    const suffix = PET_SUFFIXES[suffixSeed % PET_SUFFIXES.length];
-    name = `${prefix}${suffix}`;
-  }
+  const name = opts.isBoss ? pick(rand, BOSS_NAMES) : `${pick(rand, PET_PREFIXES)}${pick(rand, PET_SUFFIXES)}`;
+  const description = `${pick(rand, PERSONALITIES)}${pick(rand, HABITATS)}${pick(rand, HABITS)}`;
+  const superpower = pick(rand, SUPERPOWERS);
+  const element = ELEMENTS.find(e => e.id === opts.elementId) || pick(rand, ELEMENTS);
+  const bodyIndex = typeof opts.bodyIndex === 'number' ? opts.bodyIndex : Math.floor(rand() * BODY_SHAPES.length);
+  const rarity = opts.isBoss ? 5 : rollRarity(rand, opts.minRarity || 1);
+  const shiny = !opts.isBoss && rand() < (opts.shinyChance ?? BASE_SHINY_CHANCE);
 
-  // 2. Determine Text Content
-  const pIndex = seed % PERSONALITIES.length;
-  const hIndex = (seed + 13) % HABITATS.length;
-  const hbIndex = (seed + 7) % HABITS.length;
-  const spIndex = (seed + 29) % SUPERPOWERS.length;
-
-  const description = `${PERSONALITIES[pIndex]}${HABITATS[hIndex]}${HABITS[hbIndex]}`;
-  const superpower = SUPERPOWERS[spIndex];
-
-  // 3. Determine Element (Type)
-  const elementIndex = (seed + 42) % ELEMENTS.length;
-  const element = ELEMENTS[elementIndex];
-
-  // 4. Calculate Rarity (Weighted Probability)
-  // If boss, force 5
-  let rarity = 1;
-  if (isBoss) {
-    rarity = 5;
-  } else {
-    const raritySeed = (seed + 99) % 100;
-    if (raritySeed > 94) rarity = 5;      // 5% Chance
-    else if (raritySeed > 84) rarity = 4; // 10% Chance
-    else if (raritySeed > 64) rarity = 3; // 20% Chance
-    else if (raritySeed > 34) rarity = 2; // 30% Chance
-    else rarity = 1;                      // 35% Chance
-  }
-
-  // 5. Generate Stats (Power, Speed, Smarts)
-  // Scale stats based on input minStats (Difficulty)
-  const power = Math.min(100, Math.max(minStats, minStats + (seed % (100 - minStats))));
-  const speed = Math.min(100, Math.max(minStats, minStats + ((seed * 2) % (100 - minStats))));
-  const smarts = Math.min(100, Math.max(minStats, minStats + ((seed * 3) % (100 - minStats))));
-
-  const imagePrompt = isBoss ? `BOSS-${name}-${seed}` : `${name}-${seed}`; 
+  // Rarity lifts the floor a little so a ★5 feels special.
+  const rarityBonus = (rarity - 1) * 3 + (shiny ? 5 : 0);
+  const stat = () => Math.min(STAT_CAP, randomInt(rand, minStat, maxStat) + rarityBonus);
 
   return {
     name,
     description,
     superpower,
-    imagePrompt,
+    imagePrompt: `${opts.isBoss ? 'BOSS-' : ''}${name}-${seed}`,
     rarity,
     element,
-    stats: {
-      power,
-      speed,
-      smarts
-    }
+    bodyIndex,
+    shiny,
+    stats: { power: stat(), speed: stat(), smarts: stat() },
   };
-}
+};
+
+// --- Quiz: answers choose the element and the body shape; the individual is new every time ---
+
+const ELEMENT_BY_ANSWERS: Record<string, Record<string, string>> = {
+  red: { space: 'light', ocean: 'fire', forest: 'fire' },
+  blue: { space: 'dark', ocean: 'water', forest: 'ice' },
+  yellow: { space: 'electric', ocean: 'wind', forest: 'grass' },
+};
+
+const BODY_BY_ANSWERS: Record<string, Record<string, string>> = {
+  outside: { fly: 'bird', talk: 'beast', invisible: 'ghost' },
+  draw: { fly: 'dragon', talk: 'bug', invisible: 'blob' },
+  book: { fly: 'bird', talk: 'bug', invisible: 'ghost' },
+};
+
+const STAT_BY_SNACK: Record<string, keyof PetStats> = { sweet: 'smarts', fruit: 'speed', snack: 'power' };
+
+export const quizTraits = (answerIds: string[]) => {
+  const [play, snack, magic, color, place] = answerIds;
+  const elementId = ELEMENT_BY_ANSWERS[color]?.[place];
+  const bodyId = BODY_BY_ANSWERS[play]?.[magic];
+  const bodyIndex = BODY_SHAPES.findIndex(b => b.id === bodyId);
+  return { elementId, bodyIndex: bodyIndex >= 0 ? bodyIndex : undefined, favoriteStat: STAT_BY_SNACK[snack] };
+};
+
+export const generatePetProfile = async (answerIds: string[]): Promise<GeneratedPet> => {
+  // Short "thinking" delay to build anticipation
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  const traits = quizTraits(answerIds);
+  const profile = generateProfileFromSeedString(`${answerIds.join('-')}-${Date.now()}-${Math.random()}`, {
+    statRange: [28, 42],
+    elementId: traits.elementId,
+    bodyIndex: traits.bodyIndex,
+    rand: Math.random,
+  });
+  if (traits.favoriteStat) profile.stats[traits.favoriteStat] += 8;
+
+  return { ...profile, imageUrl: '', level: 1, xp: 0, friendship: 20 };
+};
+
+// --- Enemies ---
+
+const BOSS_PROFILES: Record<string, GeneratedPet> = {
+  final_star: {
+    name: 'いろパパ',
+    description: '最強のパパ。家族を守るために立ちふさがる、優しくも厳しい最後の壁。',
+    superpower: '無限の家族愛ビーム',
+    imagePrompt: 'iro-papa',
+    rarity: 5,
+    element: ELEMENTS.find(e => e.id === 'dark') || ELEMENTS[0],
+    stats: { power: 135, speed: 120, smarts: 140 },
+    imageUrl: '',
+    level: 50,
+    xp: 0,
+  },
+  secret_galaxy: {
+    name: 'いろママ',
+    description: '真の裏ボスにして最強のママ。その笑顔の裏には銀河を揺るがすパワーが秘められている。',
+    superpower: '絶対的お母さんの威厳',
+    imagePrompt: 'iro-mama',
+    rarity: 5,
+    element: ELEMENTS.find(e => e.id === 'light') || ELEMENTS[0],
+    stats: { power: 175, speed: 170, smarts: 175 },
+    imageUrl: '',
+    level: 99,
+    xp: 0,
+  },
+};
 
 /**
- * Generate a completely random pet for battles or wild encounters
- * Accepts difficulty parameters to scale enemy strength
+ * Generate an enemy for a stage wave. The last wave is the stage boss.
  */
-export const generateRandomPet = async (difficulty: number = 1, minStats: number = 10, stageId?: string): Promise<GeneratedPet> => {
-  // Check for Fixed Boss Stages
-  if (stageId === 'final_star') {
-    return {
-      name: 'いろパパ',
-      description: '最強のパパ。家族を守るために立ちふさがる、優しくも厳しい最後の壁。',
-      superpower: '無限の家族愛ビーム',
-      imagePrompt: 'iro-papa',
-      rarity: 5,
-      element: ELEMENTS.find(e => e.id === 'dark') || ELEMENTS[0],
-      stats: { power: 95, speed: 85, smarts: 98 },
-      imageUrl: '',
-      level: 50,
-      xp: 0
-    };
+export const generateEnemy = (stage: Stage, wave: number): GeneratedPet => {
+  const isLastWave = wave >= stage.waves - 1;
+  if (isLastWave && BOSS_PROFILES[stage.id]) {
+    const boss = BOSS_PROFILES[stage.id];
+    return { ...boss, imageUrl: generatePetImage(boss.imagePrompt), isBoss: true };
   }
-
-  if (stageId === 'secret_galaxy') {
-    return {
-      name: 'いろママ',
-      description: '真の裏ボスにして最強のママ。その笑顔の裏には銀河を揺るがすパワーが秘められている。',
-      superpower: '絶対的お母さんの威厳',
-      imagePrompt: 'iro-mama',
-      rarity: 5,
-      element: ELEMENTS.find(e => e.id === 'light') || ELEMENTS[0],
-      stats: { power: 99, speed: 99, smarts: 99 },
-      imageUrl: '',
-      level: 99,
-      xp: 0
-    };
-  }
-
-  const randomSeed = Math.random().toString(36).substring(7) + Date.now().toString();
-  const isBoss = difficulty === 5;
-  const profile = generateProfileFromSeedString(randomSeed, minStats, isBoss);
-  
+  const [min, max] = stage.enemyStats;
+  const bossBoost = isLastWave ? Math.round((max - min) * 0.5) : 0;
+  const profile = generateProfileFromSeedString(`${stage.id}-${wave}-${Date.now()}-${Math.random()}`, {
+    statRange: [min + bossBoost, max + bossBoost],
+    rand: Math.random,
+    isBoss: isLastWave && stage.difficultyLevel >= 5,
+  });
   return {
     ...profile,
     imageUrl: '',
-    level: difficulty * 3, // Enemies have levels too roughly
-    xp: 0
+    level: Math.max(1, Math.round(min / 6)) + (isLastWave ? 3 : 0),
+    xp: 0,
+    isBoss: isLastWave,
   };
+};
+
+/**
+ * Hatch a pet from an egg. Better eggs give rarer pets and more shinies.
+ */
+export const generateEggPet = (minRarity: number, shinyChance: number): GeneratedPet => {
+  const profile = generateProfileFromSeedString(`egg-${Date.now()}-${Math.random()}`, {
+    statRange: [30, 45],
+    minRarity,
+    shinyChance,
+    rand: Math.random,
+  });
+  return { ...profile, imageUrl: '', level: 1, xp: 0, friendship: 30, dateFound: Date.now() };
 };
 
 // --- CUSTOM BOSS IMAGES ---
@@ -378,50 +392,12 @@ const IRO_PAPA_SVG_DATA = `data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2
 const IRO_MAMA_SVG_DATA = `data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%20style%3D%22background%3A%23fff0f5%22%3E%3Cpath%20d%3D%22M128%20128c0-64%2064-96%20128-96s128%2032%20128%2096v256c0%2032-32%2064-64%2064H192c-32%200-64-32-64-64V128z%22%20fill%3D%22%238e44ad%22%2F%3E%3Cpath%20d%3D%22M160%20144v112c0%2053%2043%2096%2096%2096s96-43%2096-96V144%22%20fill%3D%22%23ffdec8%22%2F%3E%3Cg%20fill%3D%22%23333%22%3E%3Ccircle%20cx%3D%22208%22%20cy%3D%22240%22%20r%3D%2216%22%2F%3E%3Ccircle%20cx%3D%22304%22%20cy%3D%22240%22%20r%3D%2216%22%2F%3E%3C%2Fg%3E%3Cpath%20d%3D%22M208%20304q48%2048%2096%200%22%20fill%3D%22none%22%20stroke%3D%22%23e91e63%22%20stroke-width%3D%228%22%20stroke-linecap%3D%22round%22%2F%3E%3Cpath%20d%3D%22M128%20400q128%2064%20256%200v112H128z%22%20fill%3D%22%23f1c40f%22%2F%3E%3C%2Fsvg%3E`;
 
 /**
- * Generate the image of the pet using diverse APIs.
+ * Photo for the family bosses. Every other monster is drawn locally by MonsterArt, so this returns ''.
  */
-export const generatePetImage = async (imagePrompt: string): Promise<string> => {
-  // --- SPECIAL BOSS IMAGES ---
-  if (imagePrompt === 'iro-papa') {
-    return IRO_PAPA_URL;
-  }
-  if (imagePrompt === 'iro-mama') {
-    return IRO_MAMA_URL;
-  }
-
-  const hash = simpleHash(imagePrompt);
-  
-  // Decide the source strategy (15 variations for maximum variety)
-  // Replaced unstable sources (Boring Avatars) with reliable DiceBear/RoboHash options
-  const strategy = hash % 15;
-  const seed = hash.toString();
-
-  switch (strategy) {
-    // --- Stable Robots/Monsters/Cats (RoboHash) ---
-    case 0: return `https://robohash.org/${seed}.png?set=set4&size=300x300`; // Cats
-    case 1: return `https://robohash.org/${seed}.png?set=set2&size=300x300`; // Monsters
-    
-    // --- DiceBear Collection (Very Stable) ---
-    case 2: return `https://api.dicebear.com/9.x/big-ears/svg?seed=${seed}&backgroundColor=transparent`; // Funny Animals
-    case 3: return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&backgroundColor=transparent`; // People
-    case 4: return `https://api.dicebear.com/9.x/open-peeps/svg?seed=${seed}&backgroundColor=transparent`; // Doodles
-    case 5: return `https://api.dicebear.com/9.x/fun-emoji/svg?seed=${seed}&backgroundColor=transparent`; // Emoji
-    case 6: return `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=transparent`; // Abstract Shapes
-    case 7: return `https://api.dicebear.com/9.x/icons/svg?seed=${seed}&backgroundColor=transparent`; // Icons
-
-    // --- REPLACED: Unstable Boring Avatars -> Reliable DiceBear/RoboHash ---
-    case 8: return `https://api.dicebear.com/9.x/identicon/svg?seed=${seed}&backgroundColor=transparent`; // Abstract Identicon (replaces Beam)
-    case 9: return `https://api.dicebear.com/9.x/rings/svg?seed=${seed}&backgroundColor=transparent`;  // Abstract Rings (replaces Marble)
-    case 10: return `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}ABC&backgroundColor=transparent`; // Abstract Shapes Var 2 (replaces Sunset)
-    case 11: return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&backgroundColor=transparent`;// Detailed Avatars (replaces Bauhaus)
-    case 12: return `https://api.dicebear.com/9.x/notionists/svg?seed=${seed}&backgroundColor=transparent`; // Notion Style (replaces Ring)
-    case 13: return `https://api.dicebear.com/9.x/pixel-art/svg?seed=${seed}&backgroundColor=transparent`;  // Pixel Art (replaces Pixel)
-
-    // --- More RoboHash ---
-    case 14: return `https://robohash.org/${seed}.png?set=set5&size=300x300`; // Humans
-    
-    default: return `https://robohash.org/${seed}.png?set=set4`; // Fallback to Cats
-  }
+export const generatePetImage = (imagePrompt: string): string => {
+  if (imagePrompt === 'iro-papa') return IRO_PAPA_URL;
+  if (imagePrompt === 'iro-mama') return IRO_MAMA_URL;
+  return '';
 };
 
 /**
@@ -438,9 +414,7 @@ export const getFallbackImageUrl = (imagePrompt: string): string => {
         return IRO_MAMA_SVG_DATA;
     }
 
-    // General Fallback
-    const fallbackSet = (imagePrompt.length % 2 === 0) ? 'set4' : 'set2'; 
-    return `https://robohash.org/${encodeURIComponent(imagePrompt)}.png?set=${fallbackSet}&size=300x300`;
+    return '';
 };
 
 /**
@@ -458,4 +432,41 @@ export const calculateTypeMultiplier = (attackerId: string, defenderId: string):
   }
 
   return 1.0;
+};
+
+export const FUSION_MIN_LEVEL = 5;
+
+const stripFusedMark = (name: string) => name.replace(/^超+/, '');
+
+/**
+ * Combine two pets into a new one (まほうの合成).
+ * The first pet gives the body shape and the second the element, so children can aim at a missing species.
+ */
+export const fusePets = (pet1: GeneratedPet, pet2: GeneratedPet): GeneratedPet => {
+  const seed = simpleHash(`${pet1.imagePrompt}-${pet2.imagePrompt}-${Date.now()}`);
+  const n1 = stripFusedMark(pet1.name);
+  const n2 = stripFusedMark(pet2.name);
+  const fusedName = `超${n1.slice(0, Math.ceil(n1.length / 2))}${n2.slice(Math.floor(n2.length / 2))}`;
+
+  const best = (k: keyof PetStats) => Math.min(STAT_CAP, Math.floor(Math.max(pet1.stats[k], pet2.stats[k]) * 1.1));
+  const rarity = Math.min(5, Math.max(pet1.rarity, pet2.rarity) + 1);
+  const rand = seededRandom(seed);
+
+  return {
+    name: fusedName,
+    description: `【合成モンスター】${pet1.name} と ${pet2.name} の力が合わさって誕生した幻のモンスター！`,
+    superpower: pick(rand, [pet1.superpower, pet2.superpower]),
+    imagePrompt: `FUSED-${fusedName}-${seed}`,
+    rarity,
+    element: pet2.element,
+    bodyIndex: bodyIndexOf(pet1),
+    shiny: !!(pet1.shiny || pet2.shiny) || rand() < BASE_SHINY_CHANCE,
+    stats: { power: best('power'), speed: best('speed'), smarts: best('smarts') },
+    imageUrl: '',
+    level: 1,
+    xp: 0,
+    friendship: 50,
+    dateFound: Date.now(),
+    isFused: true,
+  };
 };

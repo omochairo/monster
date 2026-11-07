@@ -64,9 +64,10 @@ export const STAGES: Stage[] = [
     description: 'よわい敵がおおいよ。れんしゅうにピッタリ！',
     emoji: '🏠',
     difficultyLevel: 1,
-    minStats: 10,
+    enemyStats: [14, 28],
+    waves: 3,
+    hideIntentChance: 0,
     bgGradient: 'from-blue-100 to-green-100',
-    requiredCollectionCount: 0
   },
   {
     id: 'forest',
@@ -74,9 +75,11 @@ export const STAGES: Stage[] = [
     description: 'ちょっと強い敵がいるかも。気をつけて！',
     emoji: '🌲',
     difficultyLevel: 2,
-    minStats: 30,
+    enemyStats: [28, 45],
+    waves: 3,
+    hideIntentChance: 0.15,
     bgGradient: 'from-green-200 to-emerald-300',
-    requiredCollectionCount: 0
+    requiresStage: 'town',
   },
   {
     id: 'volcano',
@@ -84,9 +87,11 @@ export const STAGES: Stage[] = [
     description: '強敵ばかり！属性を考えて戦おう。',
     emoji: '🌋',
     difficultyLevel: 3,
-    minStats: 50,
+    enemyStats: [45, 68],
+    waves: 3,
+    hideIntentChance: 0.3,
     bgGradient: 'from-orange-200 to-red-400',
-    requiredCollectionCount: 0
+    requiresStage: 'forest',
   },
   {
     id: 'space',
@@ -94,9 +99,11 @@ export const STAGES: Stage[] = [
     description: '未知の強さが待っている...！',
     emoji: '🌌',
     difficultyLevel: 4,
-    minStats: 70,
+    enemyStats: [65, 95],
+    waves: 3,
+    hideIntentChance: 0.4,
     bgGradient: 'from-indigo-300 to-purple-500',
-    requiredCollectionCount: 0
+    requiresStage: 'volcano',
   },
   {
     id: 'final_star',
@@ -104,9 +111,12 @@ export const STAGES: Stage[] = [
     description: 'ラスボス「いろパパ」が まっている...！',
     emoji: '👔',
     difficultyLevel: 5,
-    minStats: 90,
+    enemyStats: [90, 120],
+    waves: 3,
+    hideIntentChance: 0.5,
     bgGradient: 'from-gray-800 via-gray-900 to-black',
-    requiredCollectionCount: 10
+    requiresStage: 'space',
+    requiredSpecies: 10,
   },
   {
     id: 'secret_galaxy',
@@ -114,8 +124,11 @@ export const STAGES: Stage[] = [
     description: '真の最強ボス「いろママ」に いどめ！',
     emoji: '👑',
     difficultyLevel: 6,
-    minStats: 100,
+    enemyStats: [120, 155],
+    waves: 3,
+    hideIntentChance: 0.6,
     bgGradient: 'from-pink-300 via-purple-300 to-indigo-400',
-    requiredCollectionCount: 15
+    requiresStage: 'final_star',
+    requiredSpecies: 15,
   }
 ];

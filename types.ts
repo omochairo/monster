@@ -40,6 +40,19 @@ export interface GeneratedPet extends PetProfile {
   dateFound?: number; // timestamp for collection sorting
   level?: number;
   xp?: number;
+  friendship?: number; // 0-100
+  lastFed?: number; // timestamp
+  isFused?: boolean;
+  bodyIndex?: number; // body shape; derived from imagePrompt when missing (old saves)
+  shiny?: boolean; // いろちがい
+  isBoss?: boolean; // stage boss (enemies only)
+}
+
+export interface AppSettings {
+  seEnabled: boolean;
+  bgmEnabled: boolean;
+  speechEnabled: boolean;
+  hiraganaMode: boolean;
 }
 
 export interface Stage {
@@ -47,10 +60,13 @@ export interface Stage {
   name: string;
   description: string;
   emoji: string;
-  difficultyLevel: number; // 1-5
-  minStats: number;
+  difficultyLevel: number; // 1-6
+  enemyStats: [number, number]; // stat range of normal enemies
+  waves: number; // battles per visit; the last one is the stage boss
+  hideIntentChance: number; // chance the enemy hides its next move
   bgGradient: string;
-  requiredCollectionCount: number; // How many pets needed to unlock
+  requiresStage?: string; // must clear this stage first
+  requiredSpecies?: number; // species found in the zukan
 }
 
 export enum AppState {
@@ -61,5 +77,7 @@ export enum AppState {
   COLLECTION = 'COLLECTION',
   STAGE_SELECT = 'STAGE_SELECT',
   BATTLE = 'BATTLE',
+  FUSION = 'FUSION',
   ERROR = 'ERROR'
 }
+

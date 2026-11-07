@@ -1,20 +1,46 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# おもちゃいろモンスター図鑑 🎮✨
 
-# Run and deploy your AI Studio app
+子供向けモンスター診断・図鑑・バトル・育成・合体Webアプリです。
 
-This contains everything you need to run your app locally.
+## 🚀 かんたん起動方法 (Windows)
 
-View your app in AI Studio: https://ai.studio/apps/drive/14R0p0wOVyypQ2fx4wkSI9R7h6EDAG-aU
+フォルダ内にある **`起動.bat`** (または **`start.bat`**) をダブルクリックするだけで、自動的に開発サーバーが立ち上がり、Webブラウザが開きます！
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 🛠️ コマンドで起動する場合
 
+1. 依存ライブラリのインストール:
+   ```bash
+   npm install
+   ```
+2. 開発サーバーの起動:
+   ```bash
+   npm run dev
+   ```
+3. ブラウザで `http://localhost:5173` にアクセス
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+## ✨ 主な機能
+
+- 🌟 **モンスター診断クイズ**: 5つの質問の答えで「ぞくせい」と「からだの形」が決まり、名前・能力・いろちがいは毎回ちがう子が生まれる
+- 🎨 **自作のモンスター絵**: 外部画像を使わず、その場で描く SVG モンスター（6 体形 × 8 属性、しんかで大きく豪華に、いろちがいは別の配色＋キラキラ）
+- 📖 **しゅぞく図鑑（48 しゅ）**: 未発見はシルエットで表示。ぞくせいごとのページをそろえるとコンプリート
+- ✊✌️✋ **じゃんけん式バトル**: てきが次に出すわざを予告 → かてるわざを選ぶ。HP 制で 3 匹チームを交代しながら戦う。ゲージが溜まると「ひっさつ とくぎ」
+- 🗺️ **ステージと★**: 1 ステージ 3 戦（さいごはボス）。だれも倒れずにクリアで★3。前のステージをクリアすると次が開く。倒した敵から 1 匹をつれて帰れる
+- ⬆️ **しんか**: Lv8・Lv20 で姿と名前が変わる（演出つき）
+- 🎁 **きょうの おたのしみ**: まいにちスタンプ（7 こで きんのタマゴ）・日替わりミッション 3 つ・おやつの持ち物
+- 🥚 **タマゴ**: ふつう / きん / にじ。ステージクリアであたたまり、ランクが高いほどレア・いろちがいが出やすい
+- 🍎 **お世話**: なでなで（1 日 25 回まで）とおやつで「なつき度」アップ。80 以上で、バトル中に 1 回だけ倒れずにふんばる
+- 🧪 **まほうの合成**: Lv5 以上の 2 匹で合体。1 ばんめの体形 × 2 ばんめの属性になるので、ねらった しゅぞくを作れる
+- 🔊 **サウンド & 読み上げ**: Web Audio API の効果音・BGM と、Web Speech API の読み上げ
+
+---
+
+## 🧑‍💻 開発メモ
+
+- テスト: `npm test`（計算部品の単体テスト）／ 型検査: `npm run typecheck`
+- 見た目カタログ: 開発サーバーで `http://localhost:5173/dev/gallery.html`（全 48 しゅ・しんか・いろちがい・シルエット）
+- 設計: [docs/DESIGN.md](docs/DESIGN.md)
+- 保存データ: 図鑑は `mystery-pet-collection`（従来のまま）、進行（おやつ・★・スタンプ・ミッション・タマゴ）は `mystery-pet-progress-v1`
