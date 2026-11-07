@@ -1,20 +1,32 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# おもちゃいろモンスター図鑑 🎮✨
 
-# Run and deploy your AI Studio app
+子供向けモンスター診断・図鑑・バトル・育成・合体Webアプリです。
 
-This contains everything you need to run your app locally.
+## 🚀 かんたん起動方法 (Windows)
 
-View your app in AI Studio: https://ai.studio/apps/drive/14R0p0wOVyypQ2fx4wkSI9R7h6EDAG-aU
+フォルダ内にある **`起動.bat`** (または **`start.bat`**) をダブルクリックするだけで、自動的に開発サーバーが立ち上がり、Webブラウザが開きます！
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 🛠️ コマンドで起動する場合
 
+1. 依存ライブラリのインストール:
+   ```bash
+   npm install
+   ```
+2. 開発サーバーの起動:
+   ```bash
+   npm run dev
+   ```
+3. ブラウザで `http://localhost:5173` にアクセス
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+---
+
+## ✨ 主な機能
+
+- 🌟 **モンスター診断クイズ**: 5つの質問からキミだけのモンスターを自動生成！
+- 📖 **図鑑機能**: 集めたモンスターの管理、レア度・強さ・レベル並び替え、ランク機能
+- ⚔️ **冒険 & バトル**: 最大3匹のチームで探索！「必殺とくぎ」カットインや属性対決、スカウト機能
+- 🍎 **お世話・ふれあい**: モンスターを「なでなで」したり「おやつ（飴/りんご/ケーキ）」をあげて「なつき度」とステータスを成長
+- 🧪 **まほうの合成工房**: 2匹のモンスターをフュージョンさせて超合体モンスターを誕生！
+- 🔊 **サウンド & 音声読み上げ**: WEB Audio APIのポップな音演出 & Web Speech APIによる名前・とくぎの音声読み上げ

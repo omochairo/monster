@@ -40,6 +40,16 @@ export interface GeneratedPet extends PetProfile {
   dateFound?: number; // timestamp for collection sorting
   level?: number;
   xp?: number;
+  friendship?: number; // 0-100
+  lastFed?: number; // timestamp
+  isFused?: boolean;
+}
+
+export interface AppSettings {
+  seEnabled: boolean;
+  bgmEnabled: boolean;
+  speechEnabled: boolean;
+  hiraganaMode: boolean;
 }
 
 export interface Stage {
@@ -61,5 +71,7 @@ export enum AppState {
   COLLECTION = 'COLLECTION',
   STAGE_SELECT = 'STAGE_SELECT',
   BATTLE = 'BATTLE',
+  FUSION = 'FUSION',
   ERROR = 'ERROR'
 }
+

@@ -459,3 +459,53 @@ export const calculateTypeMultiplier = (attackerId: string, defenderId: string):
 
   return 1.0;
 };
+
+/**
+ * Combine two pets into a brand new powerful Fused Pet (まほうの合成)
+ */
+export const fusePets = async (pet1: GeneratedPet, pet2: GeneratedPet): Promise<GeneratedPet> => {
+  const seedString = `${pet1.imagePrompt}-${pet2.imagePrompt}-${Date.now()}`;
+  const seed = simpleHash(seedString);
+
+  // Hybrid Name
+  const name1Half = pet1.name.slice(0, Math.ceil(pet1.name.length / 2));
+  const name2Half = pet2.name.slice(Math.floor(pet2.name.length / 2));
+  const fusedName = `超${name1Half}${name2Half}`;
+
+  // Fusion Boosted Stats (+15% bonus)
+  const power = Math.min(999, Math.floor((pet1.stats.power + pet2.stats.power) * 0.65));
+  const speed = Math.min(999, Math.floor((pet1.stats.speed + pet2.stats.speed) * 0.65));
+  const smarts = Math.min(999, Math.floor((pet1.stats.smarts + pet2.stats.smarts) * 0.65));
+
+  // High Rarity
+  const rarity = Math.min(5, Math.max(pet1.rarity, pet2.rarity) + 1);
+
+  // Hybrid Element (Chance for Light/Dark or higher level element)
+  const elementIndex = (seed + 11) % ELEMENTS.length;
+  const element = (rarity === 5 && seed % 2 === 0) 
+    ? (ELEMENTS.find(e => e.id === 'light') || ELEMENTS[elementIndex])
+    : ELEMENTS[elementIndex];
+
+  const superpower = `超覚醒・${pet1.superpower.split('ことができる')[0]} & ${pet2.superpower}`;
+  const description = `【合成モンスター】${pet1.name} と ${pet2.name} の力が合わさって誕生した幻のモンスター！秘められた力は無限大だ。`;
+  
+  const imagePrompt = `FUSED-${fusedName}-${seed}`;
+  const imageUrl = await generatePetImage(imagePrompt);
+
+  return {
+    name: fusedName,
+    description,
+    superpower,
+    imagePrompt,
+    rarity,
+    element,
+    stats: { power, speed, smarts },
+    imageUrl,
+    level: Math.max(pet1.level || 1, pet2.level || 1) + 1,
+    xp: 0,
+    friendship: 50,
+    dateFound: Date.now(),
+    isFused: true
+  };
+};
+
